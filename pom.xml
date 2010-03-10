@@ -11,7 +11,7 @@
 	<name>Evaluator</name>
 	<version>0.0.1-SNAPSHOT</version>
 	<description>Groovy-powered evaluation tool</description>
-	<url>http://basetools.org/figurate</url>
+	<url>http://basetools.org/evaluator</url>
 	<repositories>
 		<repository>
 			<id>modularity-releases</id>
@@ -172,7 +172,7 @@
 						<storetype>jks</storetype>
 						<validity>365</validity>
 						<dnameCn>Ben Fortuna</dnameCn>
-						<dnameOu>Figurate</dnameOu>
+						<dnameOu>Evaluator</dnameOu>
 						<dnameO>Micronode</dnameO>
 						<dnameL>Melbourne</dnameL>
 						<dnameSt>Victoria</dnameSt>
