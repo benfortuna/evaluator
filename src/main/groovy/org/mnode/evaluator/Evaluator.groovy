@@ -19,21 +19,39 @@
 package org.mnode.evaluator
 
 import groovy.swing.SwingBuilder
-
+import groovy.lang.GroovyShellimport java.awt.SystemTrayimport java.awt.TrayIconimport java.awt.PopupMenuimport java.awt.MenuItemimport javax.swing.JFrameimport java.awt.event.MouseEvent
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 
 //@Grapes([
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
 class Evaluator {
+
+     static void close(def frame, def exit) {
+         if (exit) {
+             System.exit(0)
+         }
+         else {
+             frame.visible = false
+         }
+     }
+
   static void main(def args) {
     LookAndFeelHelper.instance.addLookAndFeelAlias('seaglass', 'com.seaglasslookandfeel.SeaGlassLookAndFeel')
 
+    def shell = new GroovyShell()
+    
+    def evaluate = { expression ->
+        shell.evaluate(expression)
+    }
+    
     def swing = new SwingBuilder()
     swing.edt {
       lookAndFeel('seaglass') //, 'substance', 'system')
 
-      frame(title: 'Evaluator', size: [350, 480], show: true, locationRelativeTo: null) {
+      frame(title: 'Evaluator', size: [350, 480], show: true, locationRelativeTo: null,
+              defaultCloseOperation: JFrame.DO_NOTHING_ON_CLOSE, id: 'evaluatorFrame') {
+          
           actions {
               action(id: 'evaluate')
           }
@@ -54,7 +72,7 @@ class Evaluator {
                   textField(constraints: BorderLayout.SOUTH, columns: 15, id: 'inputField')
                   inputField.actionPerformed = {
                       if (inputField.text) {
-                          resultField.text = "${resultField.text}\n${inputField.text}"
+                          resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
                           inputField.text = ""
                       }
                   }
@@ -84,6 +102,35 @@ class Evaluator {
               button(text: '=')
           }
           bind(source: viewNumPad, sourceProperty:'selected', target: numPad, targetProperty:'visible')
+          
+          if (SystemTray.isSupported()) {
+              TrayIcon trayIcon = new TrayIcon(imageIcon('/logo.gif').image, 'Evaluator')
+              trayIcon.imageAutoSize = false
+              trayIcon.mousePressed = { event ->
+                  if (event.button == MouseEvent.BUTTON1) {
+                      evaluatorFrame.visible = true
+                  }
+              }
+              
+              PopupMenu popupMenu = new PopupMenu('Evaluator')
+              MenuItem openMenuItem = new MenuItem('Open')
+              openMenuItem.actionPerformed = {
+                  evaluatorFrame.visible = true
+              }
+              popupMenu.add(openMenuItem)
+              popupMenu.addSeparator()
+              MenuItem exitMenuItem = new MenuItem('Exit')
+              exitMenuItem.actionPerformed = {
+                  close(evaluatorFrame, true)
+              }
+              popupMenu.add(exitMenuItem)
+              trayIcon.popupMenu = popupMenu
+              
+              SystemTray.systemTray.add(trayIcon)
+          }
+      }
+      evaluatorFrame.windowClosing = {
+          close(evaluatorFrame, !SystemTray.isSupported())
       }
     }
   }
