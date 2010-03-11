@@ -1,5 +1,6 @@
 /**
- * This file is part of Base Modules.
+
+* This file is part of Base Modules.
  *
  * Copyright (c) 2010, Ben Fortuna [fortuna@micronode.com]
  *
@@ -19,7 +20,17 @@
 package org.mnode.evaluator
 
 import groovy.swing.SwingBuilder
-import groovy.lang.GroovyShellimport java.awt.SystemTrayimport java.awt.TrayIconimport java.awt.PopupMenuimport java.awt.MenuItemimport javax.swing.JFrameimport java.awt.event.MouseEvent
+import groovy.lang.GroovyShell
+import java.awt.SystemTray
+import java.awt.TrayIcon
+import java.awt.PopupMenu
+import java.awt.MenuItem
+import javax.swing.JFrame
+import javax.swing.JComponent
+import javax.swing.KeyStroke
+import javax.swing.Action
+import java.awt.event.MouseEvent
+import javax.swing.DefaultListCellRendererimport java.awt.Componentimport javax.swing.JListimport javax.swing.DefaultListModel
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 
@@ -50,7 +61,7 @@ class Evaluator {
       lookAndFeel('seaglass') //, 'substance', 'system')
 
       frame(title: 'Evaluator', size: [350, 480], show: true, locationRelativeTo: null,
-              defaultCloseOperation: JFrame.DO_NOTHING_ON_CLOSE, id: 'evaluatorFrame') {
+              defaultCloseOperation: JFrame.DO_NOTHING_ON_CLOSE, iconImage: imageIcon('/logo-16.png', id: 'logo').image, id: 'evaluatorFrame') {
           
           actions {
               action(id: 'evaluate')
@@ -67,12 +78,20 @@ class Evaluator {
               panel(name: 'Sheet 1') {
                   borderLayout()
                   scrollPane() {
-                      textArea(editable: false, columns: 15, rows: 4, id: 'resultField')
+//                      textArea(editable: false, columns: 15, rows: 4, id: 'resultField')
+                        list(id: 'evaluations')
+                        evaluations.cellRenderer = new EvaluationListCellRenderer()
+                        def evaluationModel = new DefaultListModel()
+                        evaluations.model = evaluationModel
                   }
                   textField(constraints: BorderLayout.SOUTH, columns: 15, id: 'inputField')
                   inputField.actionPerformed = {
                       if (inputField.text) {
-                          resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
+//                          resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
+                            def evaluation = new Evaluation()
+                            evaluation.input = inputField.text
+                            evaluation.result = evaluate(inputField.text)
+                            evaluations.model.addElement(evaluation)
                           inputField.text = ""
                       }
                   }
@@ -82,21 +101,33 @@ class Evaluator {
               gridLayout(rows: 4, columns: 3)
               button(text: '7', id: 'but7')
               but7.actionPerformed = { inputField.text = "${inputField.text}7" }
-              button(text: '8')
-              button(text: '9')
+              //but7.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('7'), 'doClick')
+              //but7.actionMap.put('doClick', { but7.doClick() } as Action)
+              
+              button(text: '8', id: 'but8')
+              but8.actionPerformed = { inputField.text = "${inputField.text}8" }
+              button(text: '9', id: 'but9')
+              but9.actionPerformed = { inputField.text = "${inputField.text}9" }
               button(text: '/')
               
-              button(text: '4')
-              button(text: '5')
-              button(text: '6')
+              button(text: '4', id: 'but4')
+              but4.actionPerformed = { inputField.text = "${inputField.text}4" }
+              button(text: '5', id: 'but5')
+              but5.actionPerformed = { inputField.text = "${inputField.text}5" }
+              button(text: '6', id: 'but6')
+              but6.actionPerformed = { inputField.text = "${inputField.text}6" }
               button(text: '*')
               
-              button(text: '1')
-              button(text: '2')
-              button(text: '3')
+              button(text: '1', id: 'but1')
+              but1.actionPerformed = { inputField.text = "${inputField.text}1" }
+              button(text: '2', id: 'but2')
+              but2.actionPerformed = { inputField.text = "${inputField.text}2" }
+              button(text: '3', id: 'but3')
+              but3.actionPerformed = { inputField.text = "${inputField.text}3" }
               button(text: '-')
               
-              button(text: '0')
+              button(text: '0', id: 'but0')
+              but0.actionPerformed = { inputField.text = "${inputField.text}0" }
               button(text: '.')
               button(text: '+')
               button(text: '=')
@@ -104,7 +135,7 @@ class Evaluator {
           bind(source: viewNumPad, sourceProperty:'selected', target: numPad, targetProperty:'visible')
           
           if (SystemTray.isSupported()) {
-              TrayIcon trayIcon = new TrayIcon(imageIcon('/logo.gif').image, 'Evaluator')
+              TrayIcon trayIcon = new TrayIcon(logo.image, 'Evaluator')
               trayIcon.imageAutoSize = false
               trayIcon.mousePressed = { event ->
                   if (event.button == MouseEvent.BUTTON1) {
@@ -134,4 +165,21 @@ class Evaluator {
       }
     }
   }
+}
+
+class Evaluation {
+    def input
+    def result
+    
+    String toString() {
+        return "<html><p>${input}</p><p> = ${result}</p></html>"
+    }
+}
+
+class EvaluationListCellRenderer extends DefaultListCellRenderer {
+    
+    public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+        super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+        return this
+    }
 }
