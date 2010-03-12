@@ -30,7 +30,7 @@ import javax.swing.JComponent
 import javax.swing.KeyStroke
 import javax.swing.Action
 import java.awt.event.MouseEvent
-import javax.swing.DefaultListCellRendererimport java.awt.Componentimport javax.swing.JListimport javax.swing.DefaultListModel
+import javax.swing.DefaultListCellRendererimport java.awt.Componentimport javax.swing.JListimport javax.swing.DefaultListModelimport java.awt.event.KeyEventimport java.awt.Colorimport java.net.URIimport java.awt.Desktopimport javax.swing.JScrollPane
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 
@@ -64,12 +64,47 @@ class Evaluator {
               defaultCloseOperation: JFrame.DO_NOTHING_ON_CLOSE, iconImage: imageIcon('/logo-16.png', id: 'logo').image, id: 'evaluatorFrame') {
           
           actions {
-              action(id: 'evaluate')
+              action(id: 'exitAction', name: 'Exit', accelerator: shortcut('Q'), closure: { close(evaluatorFrame, true) })
+              action(id: 'onlineHelpAction', name: 'Online Help', accelerator: 'F1', closure: { Desktop.desktop.browse(URI.create('http://basetools.org/evaluator')) })
+              action(id: 'showTipsAction', name: 'Tips', closure: { tips.showDialog(evaluatorFrame) }, enabled: false)
+              action(id: 'aboutAction', name: 'About', closure: {
+                  dialog(title: 'About Evaluator', size: [350, 250], show: true, owner: evaluatorFrame, modal: true, locationRelativeTo: evaluatorFrame) {
+                      borderLayout()
+                      label(text: 'Evaluator 1.0', constraints: BorderLayout.NORTH, border: emptyBorder(10))
+                      panel(constraints: BorderLayout.CENTER, border: emptyBorder(10)) {
+                          borderLayout()
+                          scrollPane(horizontalScrollBarPolicy: JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, border: null) {
+                              table(id: 'propertyTable') {
+                                  def systemProps = []
+                                  for (propName in System.properties.keySet()) {
+                                      systemProps.add([property: propName, value: System.properties.getProperty(propName)])
+                                  }
+                                  tableModel(list: systemProps) {
+                                      propertyColumn(header:'Property', propertyName:'property')
+                                      propertyColumn(header:'Value', propertyName:'value')
+                                  }
+                              }
+                          }
+                      }
+                  }
+              })
           }
           
           menuBar {
+              menu(text: 'File', mnemonic: 'F') {
+                  menuItem(exitAction)
+              }
+              menu(text: "Edit", mnemonic: 'E') {
+                  menuItem('Preferences')
+              }
               menu(text: 'View', mnemonic: 'V') {
                   checkBoxMenuItem(text: "Number Pad", id: 'viewNumPad')
+              }
+              menu(text: "Help", mnemonic: 'H') {
+                  menuItem(onlineHelpAction)
+                  menuItem(showTipsAction)
+                  separator()
+                  menuItem(aboutAction)
               }
           }
           
@@ -84,14 +119,36 @@ class Evaluator {
                         def evaluationModel = new DefaultListModel()
                         evaluations.model = evaluationModel
                   }
-                  textField(constraints: BorderLayout.SOUTH, columns: 15, id: 'inputField')
+                  def inputText = 'Enter an expression'
+                  textField(text: inputText, constraints: BorderLayout.SOUTH, columns: 15, foreground: Color.LIGHT_GRAY, id: 'inputField')
+                 inputField.focusGained = {
+                     if (inputField.text == inputText) {
+                         inputField.text = null
+                     }
+                 }
+                 inputField.focusLost = {
+                     if (!inputField.text) {
+                         inputField.text = inputText
+                     }
+                 }
+                 inputField.keyPressed = { e ->
+                     if (e.keyCode == KeyEvent.VK_ESCAPE) {
+                         inputField.text = null
+                     }
+                 }
                   inputField.actionPerformed = {
                       if (inputField.text) {
 //                          resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
                             def evaluation = new Evaluation()
                             evaluation.input = inputField.text
-                            evaluation.result = evaluate(inputField.text)
+                            try {
+                                evaluation.result = evaluate(inputField.text)
+                            }
+                            catch (Exception e) {
+                                evaluation.result = e
+                            }
                             evaluations.model.addElement(evaluation)
+                            evaluations.ensureIndexIsVisible(evaluations.model.size - 1)
                           inputField.text = ""
                       }
                   }
@@ -172,7 +229,20 @@ class Evaluation {
     def result
     
     String toString() {
-        return "<html><p>${input}</p><p> = ${result}</p></html>"
+        if (result) {
+            if (result instanceof Exception) {
+                return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in exception: ${result}</p></html>"
+            }
+            else if (result instanceof Closure) {
+                return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in closure</p></html>"
+            }
+            else {
+                return "<html><p>${input}</p><p> = ${result}</p></html>"
+            }
+        }
+        else {
+            return "<html><p>${input}</p><p style='font-style:italic;color:silver'>No Result</p></html>"
+        }
     }
 }
 
