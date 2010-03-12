@@ -30,7 +30,7 @@ import javax.swing.JComponent
 import javax.swing.KeyStroke
 import javax.swing.Action
 import java.awt.event.MouseEvent
-import javax.swing.DefaultListCellRendererimport java.awt.Componentimport javax.swing.JListimport javax.swing.DefaultListModelimport java.awt.event.KeyEventimport java.awt.Colorimport java.net.URIimport java.awt.Desktopimport javax.swing.JScrollPane
+import javax.swing.DefaultListCellRendererimport java.awt.Componentimport javax.swing.JListimport javax.swing.DefaultListModelimport java.awt.event.KeyEventimport java.awt.Colorimport java.net.URIimport java.awt.Desktopimport javax.swing.JScrollPaneimport java.awt.image.ImageProducerimport java.awt.Toolkitimport javax.swing.SwingConstants
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 
@@ -56,7 +56,78 @@ class Evaluator {
         shell.evaluate(expression)
     }
     
+    def synonyms = []
+    synonyms += new Synonym()
+    synonyms[-1].name = 'avg'
+    synonyms[-1].input = '{ it.sum() / it.size() }'
+    
+    synonyms += new Synonym()
+    synonyms[-1].name = 'median'
+    synonyms[-1].input = '{ it.size() % 2 == 0 ? it[(int) (it.size() / 2)] : it[(int) ((it.size() + 1) / 2)] }'
+    
+    synonyms += new Synonym()
+    synonyms[-1].name = 'mode'
+    synonyms[-1].input = '{ vals -> vals.max { vals.count(it) } }'
+    
+    synonyms += new Synonym()
+    synonyms[-1].name = 'range'
+    synonyms[-1].input = '{ it.max() - it.min() }'
+    
+    synonyms += new Synonym()
+    synonyms[-1].name = 'nslookup'
+    synonyms[-1].input = '{ InetAddress.getAllByName(it) }'
+    
+    synonyms += new Synonym()
+    synonyms[-1].name = 'reverseLookup'
+    synonyms[-1].input = '{ InetAddress.getByAddress((byte[]) it).hostName }'
+        
+    synonyms += new Synonym()
+    synonyms[-1].name = 'pieChart'
+    synonyms[-1].input = '{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data}&chl=${labels}").content }'
+    
+    for (synonym in synonyms) {
+        try {
+            evaluate("${synonym.name} = ${synonym.input}")
+        }
+        catch (Exception e) {
+            e.printStackTrace()
+        }
+    }
+    
     def swing = new SwingBuilder()
+    
+    def editSynonyms = { parent ->
+        swing.dialog(title: 'Synonyms', size: [400, 300], show: true, owner: parent, modal: true, locationRelativeTo: parent) {
+            borderLayout()
+            panel(border: emptyBorder(5)) {
+                borderLayout()
+                scrollPane(horizontalScrollBarPolicy: JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, border: null) {
+                    list(id: 'synonymsList')
+                    synonymsList.cellRenderer = new SynonymListCellRenderer()
+                    def synonymsModel = new DefaultListModel()
+                    for (synonym in synonyms) {
+                        synonymsModel.addElement(synonym)
+                    }
+                    synonymsList.model = synonymsModel
+                    synonymsList.selectionModel.valueChanged = {
+                        if (synonymsList.selectedValue) {
+                            synonymEditField.text = synonymsList.selectedValue.input
+                        }
+                        else {
+                            synonymEditField.text = null
+                        }
+                    }
+                }
+            }
+            panel(border: emptyBorder(5), constraints: BorderLayout.SOUTH) {
+                borderLayout()
+                scrollPane(border: null) {
+                    textArea(rows: 4, id: 'synonymEditField')
+                }
+            }
+        }
+    }
+    
     swing.edt {
       lookAndFeel('seaglass') //, 'substance', 'system')
 
@@ -65,6 +136,7 @@ class Evaluator {
           
           actions {
               action(id: 'exitAction', name: 'Exit', accelerator: shortcut('Q'), closure: { close(evaluatorFrame, true) })
+              action(id: 'editSynonymsAction', name: 'Synonyms..', closure: { editSynonyms(evaluatorFrame) })
               action(id: 'onlineHelpAction', name: 'Online Help', accelerator: 'F1', closure: { Desktop.desktop.browse(URI.create('http://basetools.org/evaluator')) })
               action(id: 'showTipsAction', name: 'Tips', closure: { tips.showDialog(evaluatorFrame) }, enabled: false)
               action(id: 'aboutAction', name: 'About', closure: {
@@ -95,7 +167,7 @@ class Evaluator {
                   menuItem(exitAction)
               }
               menu(text: "Edit", mnemonic: 'E') {
-                  menuItem('Preferences')
+                  menuItem(editSynonymsAction)
               }
               menu(text: 'View', mnemonic: 'V') {
                   checkBoxMenuItem(text: "Number Pad", id: 'viewNumPad')
@@ -134,6 +206,9 @@ class Evaluator {
                  inputField.keyPressed = { e ->
                      if (e.keyCode == KeyEvent.VK_ESCAPE) {
                          inputField.text = null
+                     }
+                     else if (e.keyCode == KeyEvent.VK_UP && evaluations.model.size > 0) {
+                         inputField.text = evaluations.model.getElementAt(evaluations.model.size - 1).input
                      }
                  }
                   inputField.actionPerformed = {
@@ -236,6 +311,9 @@ class Evaluation {
             else if (result instanceof Closure) {
                 return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in closure</p></html>"
             }
+            else if (result instanceof ImageProducer) {
+                return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in image</p></html>"
+            }
             else {
                 return "<html><p>${input}</p><p> = ${result}</p></html>"
             }
@@ -247,6 +325,34 @@ class Evaluation {
 }
 
 class EvaluationListCellRenderer extends DefaultListCellRenderer {
+    
+    public EvaluationListCellRenderer() {
+        verticalTextPosition = SwingConstants.TOP
+        horizontalTextPosition = SwingConstants.CENTER
+    }
+    
+    public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+        super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+        if (value.result instanceof ImageProducer) {
+            icon = new SwingBuilder().imageIcon(Toolkit.defaultToolkit.createImage(value.result))
+        }
+        else {
+            icon = null
+        }
+        return this
+    }
+}
+
+class Synonym {
+    def name
+    def input
+    
+    String toString() {
+        return name
+    }
+}
+
+class SynonymListCellRenderer extends DefaultListCellRenderer {
     
     public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
