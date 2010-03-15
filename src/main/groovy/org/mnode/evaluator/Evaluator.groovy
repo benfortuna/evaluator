@@ -110,9 +110,9 @@ class Evaluator {
     def resultStyle = StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE)
     
     def binding = new Binding()   
-    binding.variables._outputTransforms = []
-    binding.variables._outputTransforms << { it -> if (it instanceof ImageProducer) new ImageIcon(it)}
-    binding.variables._outputTransforms << OutputTransforms.loadOutputTransforms()
+//    binding.variables._outputTransforms = []
+//    binding.variables._outputTransforms << { it -> if (it instanceof ImageProducer) new ImageIcon(it)}
+    binding.variables._outputTransforms = OutputTransforms.loadOutputTransforms()
     
     def shell = new GroovyShell(binding)
     
