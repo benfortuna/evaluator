@@ -59,7 +59,7 @@ import javax.swing.text.SimpleAttributeSet
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 import groovy.ui.OutputTransforms
-
+import sun.awt.image.URLImageSource
 //@Grapes([
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
 class Evaluator {
@@ -100,6 +100,11 @@ class Evaluator {
         appendOutput(icon.toString(), sas, doc)
     }
 
+    static void appendOutput(URLImageSource imageSource, AttributeSet style, Document doc) {
+        def icon = new ImageIcon(Toolkit.defaultToolkit.createImage(imageSource))
+        appendOutput(icon, style, doc)
+    }
+
   static void main(def args) {
     LookAndFeelHelper.instance.addLookAndFeelAlias('seaglass', 'com.seaglasslookandfeel.SeaGlassLookAndFeel')
 
@@ -118,7 +123,8 @@ class Evaluator {
     
     def evaluate = { expression ->
         def result = shell.evaluate(expression)
-        OutputTransforms.transformResult(result, shell.context._outputTransforms)
+//        OutputTransforms.transformResult(result, shell.context._outputTransforms)
+        return result
     }
     
     def evaluations = []
@@ -154,7 +160,7 @@ class Evaluator {
         
     synonyms += new Synonym()
     synonyms[-1].name = 'table'
-    synonyms[-1].input = '{ new groovy.swing.SwingBuilder().table { tableModel(list: it) {} } }'
+    synonyms[-1].input = '{ new groovy.swing.SwingBuilder().edt { table { tableModel(list: it) { propertyColumn(header:"Property", propertyName:"property") propertyColumn(header:"Value", propertyName:"value") } } } }'
     
     for (synonym in synonyms) {
         try {
