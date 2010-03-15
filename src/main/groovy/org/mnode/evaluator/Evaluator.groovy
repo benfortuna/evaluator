@@ -30,9 +30,35 @@ import javax.swing.JComponent
 import javax.swing.KeyStroke
 import javax.swing.Action
 import java.awt.event.MouseEvent
-import javax.swing.DefaultListCellRendererimport java.awt.Componentimport javax.swing.JListimport javax.swing.DefaultListModelimport java.awt.event.KeyEventimport java.awt.Colorimport java.net.URIimport java.awt.Desktopimport javax.swing.JScrollPaneimport java.awt.image.ImageProducerimport java.awt.Toolkitimport javax.swing.SwingConstants
+import javax.swing.DefaultListCellRenderer
+import java.awt.Component
+import javax.swing.JList
+import javax.swing.DefaultListModel
+import java.awt.event.KeyEvent
+import java.awt.Color
+import java.awt.Window
+import java.net.URI
+import java.awt.Desktop
+import javax.swing.JScrollPane
+import javax.swing.Icon
+import javax.swing.ImageIcon
+import java.awt.image.ImageProducer
+import java.awt.Toolkit
+import java.awt.Graphics2D
+import java.awt.image.BufferedImage
+import java.awt.Image
+import javax.swing.SwingConstants
+import javax.swing.JTable
+import javax.swing.text.StyleConstants
+import javax.swing.text.StyleContext
+import javax.swing.text.StyledDocument
+import javax.swing.text.DefaultStyledDocument
+import javax.swing.text.Document
+import javax.swing.text.AttributeSet
+import javax.swing.text.SimpleAttributeSet
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
+import groovy.ui.OutputTransforms
 
 //@Grapes([
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
@@ -46,15 +72,56 @@ class Evaluator {
              frame.visible = false
          }
      }
+     
+    static void appendOutput(String text, AttributeSet style, Document doc){
+        doc.insertString(doc.length, text, style)
+//        ensureNoDocLengthOverflow(doc)
+    }
+
+    static void appendOutput(Window window, AttributeSet style, Document doc) {
+        appendOutput(window.toString(), style, doc)
+    }
+
+    static void appendOutput(Object object, AttributeSet style, Document doc) {
+        appendOutput(object.toString(), style, doc)
+    }
+
+    static void appendOutput(Component component, AttributeSet style, Document doc) {
+        SimpleAttributeSet sas = new SimpleAttributeSet();
+        sas.addAttribute(StyleConstants.NameAttribute, "component")
+        StyleConstants.setComponent(sas, component)
+        appendOutput(component.toString(), sas, doc)
+    }
+
+    static void appendOutput(Icon icon, AttributeSet style, Document doc) {
+        SimpleAttributeSet sas = new SimpleAttributeSet();
+        sas.addAttribute(StyleConstants.NameAttribute, "icon")
+        StyleConstants.setIcon(sas, icon)
+        appendOutput(icon.toString(), sas, doc)
+    }
 
   static void main(def args) {
     LookAndFeelHelper.instance.addLookAndFeelAlias('seaglass', 'com.seaglasslookandfeel.SeaGlassLookAndFeel')
 
-    def shell = new GroovyShell()
+    StyledDocument doc = new DefaultStyledDocument()
+    def inputStyle = doc.addStyle("input", StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE))
+    StyleConstants.setForeground(inputStyle, Color.LIGHT_GRAY)
+    
+    def resultStyle = StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE)
+    
+    def binding = new Binding()   
+    binding.variables._outputTransforms = []
+    binding.variables._outputTransforms << { it -> if (it instanceof ImageProducer) new ImageIcon(it)}
+    binding.variables._outputTransforms << OutputTransforms.loadOutputTransforms()
+    
+    def shell = new GroovyShell(binding)
     
     def evaluate = { expression ->
-        shell.evaluate(expression)
+        def result = shell.evaluate(expression)
+        OutputTransforms.transformResult(result, shell.context._outputTransforms)
     }
+    
+    def evaluations = []
     
     def synonyms = []
     synonyms += new Synonym()
@@ -63,7 +130,7 @@ class Evaluator {
     
     synonyms += new Synonym()
     synonyms[-1].name = 'median'
-    synonyms[-1].input = '{ it.size() % 2 == 0 ? it[(int) (it.size() / 2)] : it[(int) ((it.size() + 1) / 2)] }'
+    synonyms[-1].input = '{ it.size() % 2 == 0 ? it[it.size() / 2 - 1 as int] : it[(it.size() + 1) / 2 - 1 as int] }'
     
     synonyms += new Synonym()
     synonyms[-1].name = 'mode'
@@ -84,6 +151,10 @@ class Evaluator {
     synonyms += new Synonym()
     synonyms[-1].name = 'pieChart'
     synonyms[-1].input = '{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data}&chl=${labels}").content }'
+        
+    synonyms += new Synonym()
+    synonyms[-1].name = 'table'
+    synonyms[-1].input = '{ new groovy.swing.SwingBuilder().table { tableModel(list: it) {} } }'
     
     for (synonym in synonyms) {
         try {
@@ -95,6 +166,20 @@ class Evaluator {
     }
     
     def swing = new SwingBuilder()
+    
+    def display = { evaluation ->
+//        swing.edt {
+//             def doc = resultField.styledDocument
+             if (doc.length > 0 && doc.getText(doc.length - 1, 1) != '\n') {
+                 appendOutput('\n', inputStyle, doc)
+             }
+             appendOutput(evaluation.input, inputStyle, doc)
+             appendOutput('\n', inputStyle, doc)
+             appendOutput(evaluation.result, resultStyle, doc)
+//             doc.insertString(doc.length, "${evaluation.input}\n", inputStyle)
+//             doc.insertString(doc.length, "= ${evaluation.result}\n", resultStyle)
+//        }
+    }
     
     def editSynonyms = { parent ->
         swing.dialog(title: 'Synonyms', size: [400, 300], show: true, owner: parent, modal: true, locationRelativeTo: parent) {
@@ -129,7 +214,7 @@ class Evaluator {
     }
     
     swing.edt {
-      lookAndFeel('seaglass') //, 'substance', 'system')
+      lookAndFeel('seaglass', 'system') //, 'substance')
 
       frame(title: 'Evaluator', size: [350, 480], show: true, locationRelativeTo: null,
               defaultCloseOperation: JFrame.DO_NOTHING_ON_CLOSE, iconImage: imageIcon('/logo-16.png', id: 'logo').image, id: 'evaluatorFrame') {
@@ -171,6 +256,8 @@ class Evaluator {
               }
               menu(text: 'View', mnemonic: 'V') {
                   checkBoxMenuItem(text: "Number Pad", id: 'viewNumPad')
+                  separator()
+                  checkBoxMenuItem(text: "Word Wrap", id: 'viewWordWrap')
               }
               menu(text: "Help", mnemonic: 'H') {
                   menuItem(onlineHelpAction)
@@ -185,35 +272,39 @@ class Evaluator {
               panel(name: 'Sheet 1') {
                   borderLayout()
                   scrollPane() {
-//                      textArea(editable: false, columns: 15, rows: 4, id: 'resultField')
-                        list(id: 'evaluations')
-                        evaluations.cellRenderer = new EvaluationListCellRenderer()
-                        def evaluationModel = new DefaultListModel()
-                        evaluations.model = evaluationModel
+//                        textArea(document: doc, editable: false, wrapStyleWord: true, columns: 15, rows: 4, id: 'resultField')
+                        textPane(document: doc, editable: false, id: 'resultField')
+                        bind(source: viewWordWrap, sourceProperty:'selected', target: resultField, targetProperty: 'lineWrap')
+//                        list(id: 'evaluations')
+//                        evaluations.cellRenderer = new EvaluationListCellRenderer()
+//                        def evaluationModel = new DefaultListModel()
+//                        evaluations.model = evaluationModel
                   }
                   def inputText = 'Enter an expression'
                   textField(text: inputText, constraints: BorderLayout.SOUTH, columns: 15, foreground: Color.LIGHT_GRAY, id: 'inputField')
                  inputField.focusGained = {
                      if (inputField.text == inputText) {
                          inputField.text = null
+                         inputField.foreground = Color.BLACK
                      }
                  }
                  inputField.focusLost = {
                      if (!inputField.text) {
                          inputField.text = inputText
+                         inputField.foreground = Color.LIGHT_GRAY
                      }
                  }
                  inputField.keyPressed = { e ->
                      if (e.keyCode == KeyEvent.VK_ESCAPE) {
                          inputField.text = null
                      }
-                     else if (e.keyCode == KeyEvent.VK_UP && evaluations.model.size > 0) {
-                         inputField.text = evaluations.model.getElementAt(evaluations.model.size - 1).input
+                     else if (e.keyCode == KeyEvent.VK_UP && evaluations) {
+                         inputField.text = evaluations[evaluations.size - 1].input
                      }
                  }
                   inputField.actionPerformed = {
                       if (inputField.text) {
-//                          resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
+//                            resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
                             def evaluation = new Evaluation()
                             evaluation.input = inputField.text
                             try {
@@ -222,8 +313,9 @@ class Evaluator {
                             catch (Exception e) {
                                 evaluation.result = e
                             }
-                            evaluations.model.addElement(evaluation)
-                            evaluations.ensureIndexIsVisible(evaluations.model.size - 1)
+                            evaluations += evaluation
+                            display evaluation
+//                            evaluations.ensureIndexIsVisible(evaluations.model.size - 1)
                           inputField.text = ""
                       }
                   }
@@ -311,8 +403,11 @@ class Evaluation {
             else if (result instanceof Closure) {
                 return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in closure</p></html>"
             }
-            else if (result instanceof ImageProducer) {
+            else if (result instanceof ImageProducer || result instanceof Image) {
                 return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in image</p></html>"
+            }
+            else if (result instanceof JTable) {
+                return "<html><p>${input}</p><p style='font-style:italic;color:silver'>Resulted in table</p></html>"
             }
             else {
                 return "<html><p>${input}</p><p> = ${result}</p></html>"
@@ -329,12 +424,24 @@ class EvaluationListCellRenderer extends DefaultListCellRenderer {
     public EvaluationListCellRenderer() {
         verticalTextPosition = SwingConstants.TOP
         horizontalTextPosition = SwingConstants.CENTER
+        
+        horizontalAlignment = SwingConstants.LEFT
     }
     
     public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
         if (value.result instanceof ImageProducer) {
             icon = new SwingBuilder().imageIcon(Toolkit.defaultToolkit.createImage(value.result))
+        }
+        else if (value.result instanceof Image) {
+            icon = new SwingBuilder().imageIcon(value.result)
+        }
+        else if (value.result instanceof JComponent) {
+            BufferedImage image = new BufferedImage((int) value.result.preferredSize.width, (int) value.result.preferredSize.height, BufferedImage.TYPE_INT_RGB)
+            Graphics2D g2 = image.createGraphics()
+            value.result.paint(g2)
+            g2.dispose()
+            icon = new SwingBuilder().imageIcon(image)
         }
         else {
             icon = null
