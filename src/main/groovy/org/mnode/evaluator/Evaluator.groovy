@@ -59,9 +59,12 @@ import javax.swing.text.SimpleAttributeSet
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 import groovy.ui.OutputTransforms
-import sun.awt.image.URLImageSource
+//import sun.awt.image.URLImageSource
+import groovyx.net.ws.WSClient
+
 //@Grapes([
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
+//    @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
 class Evaluator {
 
      static void close(def frame, def exit) {
@@ -72,7 +75,7 @@ class Evaluator {
              frame.visible = false
          }
      }
-     
+
     static void appendOutput(String text, AttributeSet style, Document doc){
         doc.insertString(doc.length, text, style)
 //        ensureNoDocLengthOverflow(doc)
@@ -99,12 +102,12 @@ class Evaluator {
         StyleConstants.setIcon(sas, icon)
         appendOutput(icon.toString(), sas, doc)
     }
-
+/*
     static void appendOutput(URLImageSource imageSource, AttributeSet style, Document doc) {
         def icon = new ImageIcon(Toolkit.defaultToolkit.createImage(imageSource))
         appendOutput(icon, style, doc)
     }
-
+*/
   static void main(def args) {
     LookAndFeelHelper.instance.addLookAndFeelAlias('seaglass', 'com.seaglasslookandfeel.SeaGlassLookAndFeel')
 
@@ -115,16 +118,24 @@ class Evaluator {
     def resultStyle = StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE)
     
     def binding = new Binding()   
-//    binding.variables._outputTransforms = []
-//    binding.variables._outputTransforms << { it -> if (it instanceof ImageProducer) new ImageIcon(it)}
-    binding.variables._outputTransforms = OutputTransforms.loadOutputTransforms()
+    binding.variables._outputTransforms = []
+    binding.variables._outputTransforms += { it -> if (it instanceof ImageProducer) new ImageIcon(Toolkit.defaultToolkit.createImage(it)) }
+    binding.variables._outputTransforms += OutputTransforms.loadOutputTransforms()
+    
+    binding.variables._ui = new SwingBuilder()
+    
+    binding.variables._ws = [:]
+    binding.variables._ws.currency = new WSClient("http://www.webservicex.net/CurrencyConvertor.asmx?WSDL", Evaluator.class.classLoader)
+    binding.variables._ws.market = new WSClient("http://www.webservicex.net/stockquote.asmx?WSDL", Evaluator.class.classLoader)
+    binding.variables._ws.whois = new WSClient("http://www.webservicex.net/whois.asmx?WSDL", Evaluator.class.classLoader)
+    binding.variables._ws.units = new WSClient("http://www.webservicex.net/ConvertCooking.asmx?WSDL", Evaluator.class.classLoader)
     
     def shell = new GroovyShell(binding)
     
     def evaluate = { expression ->
         def result = shell.evaluate(expression)
-//        OutputTransforms.transformResult(result, shell.context._outputTransforms)
-        return result
+        OutputTransforms.transformResult(result, shell.context._outputTransforms)
+//        return result
     }
     
     def evaluations = []
@@ -156,11 +167,31 @@ class Evaluator {
         
     synonyms += new Synonym()
     synonyms[-1].name = 'pieChart'
-    synonyms[-1].input = '{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data}&chl=${labels}").content }'
+    synonyms[-1].input = '''{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }'''
         
     synonyms += new Synonym()
     synonyms[-1].name = 'table'
-    synonyms[-1].input = '{ new groovy.swing.SwingBuilder().edt { table { tableModel(list: it) { propertyColumn(header:"Property", propertyName:"property") propertyColumn(header:"Value", propertyName:"value") } } } }'
+    synonyms[-1].input = '{ result -> _ui.table { tableModel(list: result) { closureColumn(header: "Result", read: { row -> row} ) } } }'
+        
+    synonyms += new Synonym()
+    synonyms[-1].name = 'currency'
+    synonyms[-1].input = '{ from, to -> _ws.currency.initialize(); _ws.currency.ConversionRate(from, to) }'
+        
+    synonyms += new Synonym()
+    synonyms[-1].name = 'quote'
+    synonyms[-1].input = '''{ symbol -> _ws.market.initialize(); new XmlParser().parseText(_ws.market.GetQuote(symbol)) }'''
+        
+    synonyms += new Synonym()
+    synonyms[-1].name = 'printNode'
+    synonyms[-1].input = '{ node -> node.children().collect { "${it.name()} = ${it.text()}"} }'
+        
+    synonyms += new Synonym()
+    synonyms[-1].name = 'whois'
+    synonyms[-1].input = '''{ name -> _ws.whois.initialize(); _ws.whois.GetWhoIS(name).split('\\n') }'''
+
+    synonyms += new Synonym()
+    synonyms[-1].name = 'convertUnits'
+    synonyms[-1].input = '''{ amount, from, to -> _ws.units.initialize(); _ws.units.ChangeCookingUnit(amount, _ws.units.create('net.webservicex.Cookings'), _ws.units.create('net.webservicex.Cookings')) }'''
     
     for (synonym in synonyms) {
         try {
@@ -322,6 +353,7 @@ class Evaluator {
                             evaluations += evaluation
                             display evaluation
 //                            evaluations.ensureIndexIsVisible(evaluations.model.size - 1)
+                            resultField.caretPosition = doc.length - 1
                           inputField.text = ""
                       }
                   }
@@ -329,15 +361,11 @@ class Evaluator {
 //          }
           panel(constraints: BorderLayout.SOUTH, border: emptyBorder(5), id: 'numPad') {
               gridLayout(rows: 4, columns: 3)
-              button(text: '7', id: 'but7')
-              but7.actionPerformed = { inputField.text = "${inputField.text}7" }
+              button(text: '7', id: 'but7', actionPerformed: { inputField.text = "${inputField.text}7" })
               //but7.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('7'), 'doClick')
               //but7.actionMap.put('doClick', { but7.doClick() } as Action)
-              
-              button(text: '8', id: 'but8')
-              but8.actionPerformed = { inputField.text = "${inputField.text}8" }
-              button(text: '9', id: 'but9')
-              but9.actionPerformed = { inputField.text = "${inputField.text}9" }
+              button(text: '8', id: 'but8', actionPerformed: { inputField.text = "${inputField.text}8" })
+              button(text: '9', id: 'but9', actionPerformed: { inputField.text = "${inputField.text}9" })
               button(text: '/')
               
               button(text: '4', id: 'but4')

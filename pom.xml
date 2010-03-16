@@ -246,5 +246,10 @@
 			<artifactId>seaglasslookandfeel</artifactId>
 			<version>0.1.7.1</version>
 		</dependency>
+		<dependency>
+			<groupId>org.codehaus.groovy.modules</groupId>
+			<artifactId>groovyws</artifactId>
+			<version>0.5.1</version>
+		</dependency>
 	</dependencies>
 </project>
