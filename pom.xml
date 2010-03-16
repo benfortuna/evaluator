@@ -250,6 +250,16 @@
 			<groupId>org.codehaus.groovy.modules</groupId>
 			<artifactId>groovyws</artifactId>
 			<version>0.5.1</version>
+			<exclusions>
+				<exclusion>
+          <groupId>com.ibm.icu</groupId>
+          <artifactId>icu4j</artifactId>
+        </exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
+	<dependencyManagement>
+		<dependencies>
+		</dependencies>
+	</dependencyManagement>
 </project>
