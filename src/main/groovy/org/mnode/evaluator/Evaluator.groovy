@@ -61,8 +61,10 @@ import java.awt.BorderLayout
 import groovy.ui.OutputTransforms
 //import sun.awt.image.URLImageSource
 import groovyx.net.ws.WSClient
+import net.sf.json.groovy.JsonSlurper
 
 //@Grapes([
+//    @Grab(group='net.sf.json-lib', module='json-lib', version='2.3', classifier='jdk15'),
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
 //    @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
 class Evaluator {
@@ -123,12 +125,15 @@ class Evaluator {
     binding.variables._outputTransforms += OutputTransforms.loadOutputTransforms()
     
     binding.variables._ui = new SwingBuilder()
+    binding.variables._json = new JsonSlurper()
     
     binding.variables._ws = [:]
-    binding.variables._ws.currency = new WSClient("http://www.webservicex.net/CurrencyConvertor.asmx?WSDL", Evaluator.class.classLoader)
-    binding.variables._ws.market = new WSClient("http://www.webservicex.net/stockquote.asmx?WSDL", Evaluator.class.classLoader)
-    binding.variables._ws.whois = new WSClient("http://www.webservicex.net/whois.asmx?WSDL", Evaluator.class.classLoader)
-    binding.variables._ws.units = new WSClient("http://www.webservicex.net/ConvertCooking.asmx?WSDL", Evaluator.class.classLoader)
+    binding.variables._ws.currency = new WebService(wsdl: "http://www.webservicex.net/CurrencyConvertor.asmx?WSDL")
+    binding.variables._ws.market = new WebService(wsdl: "http://www.webservicex.net/stockquote.asmx?WSDL")
+    binding.variables._ws.whois = new WebService(wsdl: "http://www.webservicex.net/whois.asmx?WSDL")
+    binding.variables._ws.units = new WebService(wsdl: "http://www.webservicex.net/ConvertCooking.asmx?WSDL")
+    binding.variables._ws.geo = new WebService(wsdl: "http://www.webservicex.net/geoipservice.asmx?WSDL")
+    binding.variables._ws.barcode = new WebService(wsdl: "http://www.webservicex.net/barcode.asmx?WSDL")
     
     def shell = new GroovyShell(binding)
     
@@ -141,57 +146,24 @@ class Evaluator {
     def evaluations = []
     
     def synonyms = []
-    synonyms += new Synonym()
-    synonyms[-1].name = 'avg'
-    synonyms[-1].input = '{ it.sum() / it.size() }'
-    
-    synonyms += new Synonym()
-    synonyms[-1].name = 'median'
-    synonyms[-1].input = '{ it.size() % 2 == 0 ? it[it.size() / 2 - 1 as int] : it[(it.size() + 1) / 2 - 1 as int] }'
-    
-    synonyms += new Synonym()
-    synonyms[-1].name = 'mode'
-    synonyms[-1].input = '{ vals -> vals.max { vals.count(it) } }'
-    
-    synonyms += new Synonym()
-    synonyms[-1].name = 'range'
-    synonyms[-1].input = '{ it.max() - it.min() }'
-    
-    synonyms += new Synonym()
-    synonyms[-1].name = 'nslookup'
-    synonyms[-1].input = '{ InetAddress.getAllByName(it) }'
-    
-    synonyms += new Synonym()
-    synonyms[-1].name = 'reverseLookup'
-    synonyms[-1].input = '{ InetAddress.getByAddress((byte[]) it).hostName }'
-        
-    synonyms += new Synonym()
-    synonyms[-1].name = 'pieChart'
-    synonyms[-1].input = '''{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }'''
-        
-    synonyms += new Synonym()
-    synonyms[-1].name = 'table'
-    synonyms[-1].input = '{ result -> _ui.table { tableModel(list: result) { closureColumn(header: "Result", read: { row -> row} ) } } }'
-        
-    synonyms += new Synonym()
-    synonyms[-1].name = 'currency'
-    synonyms[-1].input = '{ from, to -> _ws.currency.initialize(); _ws.currency.ConversionRate(from, to) }'
-        
-    synonyms += new Synonym()
-    synonyms[-1].name = 'quote'
-    synonyms[-1].input = '''{ symbol -> _ws.market.initialize(); new XmlParser().parseText(_ws.market.GetQuote(symbol)) }'''
-        
-    synonyms += new Synonym()
-    synonyms[-1].name = 'printNode'
-    synonyms[-1].input = '{ node -> node.children().collect { "${it.name()} = ${it.text()}"} }'
-        
-    synonyms += new Synonym()
-    synonyms[-1].name = 'whois'
-    synonyms[-1].input = '''{ name -> _ws.whois.initialize(); _ws.whois.GetWhoIS(name).split('\\n') }'''
-
-    synonyms += new Synonym()
-    synonyms[-1].name = 'convertUnits'
-    synonyms[-1].input = '''{ amount, from, to -> _ws.units.initialize(); _ws.units.ChangeCookingUnit(amount, _ws.units.create('net.webservicex.Cookings'), _ws.units.create('net.webservicex.Cookings')) }'''
+    synonyms += new Synonym(name: 'avg', input: '{ it.sum() / it.size() }')
+    synonyms += new Synonym(name: 'median', input: '{ it.size() % 2 == 0 ? it[it.size() / 2 - 1 as int] : it[(it.size() + 1) / 2 - 1 as int] }')
+    synonyms += new Synonym(name: 'mode', input: '{ vals -> vals.max { vals.count(it) } }')
+    synonyms += new Synonym(name: 'range', input: '{ it.max() - it.min() }')
+    synonyms += new Synonym(name: 'nslookup', input: '{ InetAddress.getAllByName(it) }')
+    synonyms += new Synonym(name: 'reverseLookup', input: '{ InetAddress.getByAddress((byte[]) it).hostName }')
+    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }''')
+    synonyms += new Synonym(name: 'table', input: '{ result -> _ui.table { tableModel(list: result) { closureColumn(header: "Result", read: { row -> row} ) } } }')
+    synonyms += new Synonym(name: 'currency', input: '{ from, to -> _ws.currency.client.ConversionRate(from, to) }')
+    synonyms += new Synonym(name: 'stockQuote', input: '{ symbol -> new XmlParser().parseText(_ws.market.client.GetQuote(symbol)) }')
+    synonyms += new Synonym(name: 'printNode', input: '{ node -> node.children().collect { "${it.name()} = ${it.text()}"} }')
+    synonyms += new Synonym(name: 'whois', input: '{ name -> _ws.whois.client.GetWhoIS(name).split("\\n") }')
+    synonyms += new Synonym(name: 'convertUnits', input: '{ amount, from, to -> _ws.units.client.ChangeCookingUnit(amount, from, to) }')
+    synonyms += new Synonym(name: 'geoLocate', input: '{ address -> _ws.geo.client.GetGeoIP(address) }')
+    synonyms += new Synonym(name: 'geoLocateHost', input: '{ host -> geoLocate(nslookup(host)[0].hostAddress) }')
+    synonyms += new Synonym(name: 'barCode', input: '{ text, size -> java.awt.Toolkit.defaultToolkit.createImage(_ws.barcode.client.Code39(text, size, true)) }')
+    synonyms += new Synonym(name: 'freebase', input: '{ query -> _json.parse(new URL("http://www.freebase.com/api/service/search?query=${query}")) }')
+    synonyms += new Synonym(name: 'map', input: '{ query -> new URL("http://maps.google.com/maps/api/staticmap?center=${query}&zoom=14&size=512x512&maptype=roadmap&markers=color:blue|label:S|40.702147,-74.015794&markers=color:green|label:G|40.711614,-74.012318&markers=color:red|color:red|label:C|40.718217,-73.998284&sensor=false").content }')
     
     for (synonym in synonyms) {
         try {
@@ -250,6 +222,40 @@ class Evaluator {
         }
     }
     
+    def editWebServices = { parent ->
+        swing.dialog(title: 'Web Services', size: [400, 250], show: true, owner: parent, modal: true, locationRelativeTo: parent) {
+            borderLayout()
+            panel(border: emptyBorder(5)) {
+                borderLayout()
+                scrollPane(horizontalScrollBarPolicy: JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, border: null) {
+                    list(id: 'wsList')
+                    wsList.cellRenderer = new DefaultListCellRenderer()
+                    def wsModel = new DefaultListModel()
+                    for (ws in binding.variables._ws) {
+                        wsModel.addElement(ws.key)
+                    }
+                    wsList.model = wsModel
+                    wsList.selectionModel.valueChanged = {
+                        if (wsList.selectedValue) {
+                            wsEditField.text = binding.variables._ws[wsList.selectedValue].wsdl
+                        }
+                        else {
+                            wsEditField.text = null
+                        }
+                    }
+                }
+            }
+            panel(border: emptyBorder(5), constraints: BorderLayout.SOUTH) {
+                borderLayout()
+//                scrollPane(border: null) {
+                    textField(id: 'wsEditField')
+//                }
+            }
+        }
+    }
+    
+    def inputPrompt = 'Enter an expression'
+
     swing.edt {
       lookAndFeel('seaglass', 'system') //, 'substance')
 
@@ -259,6 +265,7 @@ class Evaluator {
           actions {
               action(id: 'exitAction', name: 'Exit', accelerator: shortcut('Q'), closure: { close(evaluatorFrame, true) })
               action(id: 'editSynonymsAction', name: 'Synonyms..', closure: { editSynonyms(evaluatorFrame) })
+              action(id: 'editWebServicesAction', name: 'Web Services..', closure: { editWebServices(evaluatorFrame) })
               action(id: 'onlineHelpAction', name: 'Online Help', accelerator: 'F1', closure: { Desktop.desktop.browse(URI.create('http://basetools.org/evaluator')) })
               action(id: 'showTipsAction', name: 'Tips', closure: { tips.showDialog(evaluatorFrame) }, enabled: false)
               action(id: 'aboutAction', name: 'About', closure: {
@@ -290,6 +297,8 @@ class Evaluator {
               }
               menu(text: "Edit", mnemonic: 'E') {
                   menuItem(editSynonymsAction)
+                  separator()
+                  menuItem(editWebServicesAction)
               }
               menu(text: 'View', mnemonic: 'V') {
                   checkBoxMenuItem(text: "Number Pad", id: 'viewNumPad')
@@ -317,17 +326,16 @@ class Evaluator {
 //                        def evaluationModel = new DefaultListModel()
 //                        evaluations.model = evaluationModel
                   }
-                  def inputText = 'Enter an expression'
-                  textField(text: inputText, constraints: BorderLayout.SOUTH, columns: 15, foreground: Color.LIGHT_GRAY, id: 'inputField')
+                  textField(text: inputPrompt, constraints: BorderLayout.SOUTH, columns: 15, foreground: Color.LIGHT_GRAY, id: 'inputField')
                  inputField.focusGained = {
-                     if (inputField.text == inputText) {
+                     if (inputField.text == inputPrompt) {
                          inputField.text = null
                          inputField.foreground = Color.BLACK
                      }
                  }
                  inputField.focusLost = {
                      if (!inputField.text) {
-                         inputField.text = inputText
+                         inputField.text = inputPrompt
                          inputField.foreground = Color.LIGHT_GRAY
                      }
                  }
@@ -342,53 +350,67 @@ class Evaluator {
                   inputField.actionPerformed = {
                       if (inputField.text) {
 //                            resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
-                            def evaluation = new Evaluation()
-                            evaluation.input = inputField.text
-                            try {
-                                evaluation.result = evaluate(inputField.text)
-                            }
-                            catch (Exception e) {
-                                evaluation.result = e
-                            }
-                            evaluations += evaluation
-                            display evaluation
+                            def evaluation = new Evaluation(input: inputField.text, result: 'Calculating..')
+                            doOutside {
+                                try {
+                                    evaluation.result = evaluate(evaluation.input)
+                                }
+                                catch (Exception e) {
+                                    evaluation.result = e
+                                }
+                                evaluations += evaluation
+                                
+                                doLater {
+                                    display evaluation
 //                            evaluations.ensureIndexIsVisible(evaluations.model.size - 1)
-                            resultField.caretPosition = doc.length - 1
-                          inputField.text = ""
+                                    resultField.caretPosition = doc.length - 1
+                                }
+                            }
+                            inputField.text = ""
                       }
                   }
               }
 //          }
           panel(constraints: BorderLayout.SOUTH, border: emptyBorder(5), id: 'numPad') {
-              gridLayout(rows: 4, columns: 3)
-              button(text: '7', id: 'but7', actionPerformed: { inputField.text = "${inputField.text}7" })
+              gridLayout(rows: 4, columns: 5)
+              
+              def appendInput = {
+                  if (!inputField.text || inputField.text == inputPrompt) {
+                      inputField.text = it
+                  }
+                  else if ((it instanceof Number || it == '.') && (inputField.text[-1].isNumber() || inputField.text[-1] == '.')) {
+                      inputField.text = "${inputField.text}${it}"
+                  }
+                  else {
+                      inputField.text = "${inputField.text} ${it}"
+                  }
+              }
+              
+              button(text: '7', id: 'but7', actionPerformed: { appendInput(7) })
               //but7.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke('7'), 'doClick')
               //but7.actionMap.put('doClick', { but7.doClick() } as Action)
-              button(text: '8', id: 'but8', actionPerformed: { inputField.text = "${inputField.text}8" })
-              button(text: '9', id: 'but9', actionPerformed: { inputField.text = "${inputField.text}9" })
-              button(text: '/')
+              button(text: '8', id: 'but8', actionPerformed: { appendInput(8) })
+              button(text: '9', id: 'but9', actionPerformed: { appendInput(9) })
+              button(text: '/', actionPerformed: { appendInput('/') })
+              button(text: '(', actionPerformed: { appendInput('(') })
               
-              button(text: '4', id: 'but4')
-              but4.actionPerformed = { inputField.text = "${inputField.text}4" }
-              button(text: '5', id: 'but5')
-              but5.actionPerformed = { inputField.text = "${inputField.text}5" }
-              button(text: '6', id: 'but6')
-              but6.actionPerformed = { inputField.text = "${inputField.text}6" }
-              button(text: '*')
+              button(text: '4', id: 'but4', actionPerformed: { appendInput(4) })
+              button(text: '5', id: 'but5', actionPerformed: { appendInput(5) })
+              button(text: '6', id: 'but6', actionPerformed: { appendInput(6) })
+              button(text: '*', actionPerformed: { appendInput('*') })
+              button(text: ')', actionPerformed: { appendInput(')') })
               
-              button(text: '1', id: 'but1')
-              but1.actionPerformed = { inputField.text = "${inputField.text}1" }
-              button(text: '2', id: 'but2')
-              but2.actionPerformed = { inputField.text = "${inputField.text}2" }
-              button(text: '3', id: 'but3')
-              but3.actionPerformed = { inputField.text = "${inputField.text}3" }
-              button(text: '-')
+              button(text: '1', id: 'but1', actionPerformed: { appendInput(1) })
+              button(text: '2', id: 'but2', actionPerformed: { appendInput(2) })
+              button(text: '3', id: 'but3', actionPerformed: { appendInput(3) })
+              button(text: '-', actionPerformed: { appendInput('-') })
+              button(text: '%', toolTipText: 'Modulus', actionPerformed: { appendInput('%') })
               
-              button(text: '0', id: 'but0')
-              but0.actionPerformed = { inputField.text = "${inputField.text}0" }
-              button(text: '.')
-              button(text: '+')
-              button(text: '=')
+              button(text: '0', id: 'but0', actionPerformed: { appendInput(0) })
+              button(text: '.', actionPerformed: { appendInput('.') })
+              button(text: '+', actionPerformed: { appendInput('+') })
+              button(text: '=', actionPerformed: { inputField.postActionEvent() })
+              button(text: '**', toolTipText: 'Power of', actionPerformed: { appendInput('**') })
           }
           bind(source: viewNumPad, sourceProperty:'selected', target: numPad, targetProperty:'visible')
           
@@ -487,6 +509,16 @@ class EvaluationListCellRenderer extends DefaultListCellRenderer {
 class Synonym {
     def name
     def input
+    
+    String toString() {
+        return name
+    }
+}
+
+class WebService {
+    def name
+    def wsdl
+    @Lazy def client = { def c = new WSClient(wsdl, this.class.classLoader); c.initialize(); c }()
     
     String toString() {
         return name
