@@ -59,14 +59,16 @@ import javax.swing.text.SimpleAttributeSet
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 import groovy.ui.OutputTransforms
-//import sun.awt.image.URLImageSource
 import groovyx.net.ws.WSClient
 import net.sf.json.groovy.JsonSlurper
+import groovy.sql.Sql
 
-//@Grapes([
-//    @Grab(group='net.sf.json-lib', module='json-lib', version='2.3', classifier='jdk15'),
+/*
+@Grapes([
+    @Grab(group='net.sf.json-lib', module='json-lib', version='2.3', classifier='jdk15'),
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
-//    @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
+    @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
+    */
 class Evaluator {
 
      static void close(def frame, def exit) {
@@ -104,12 +106,7 @@ class Evaluator {
         StyleConstants.setIcon(sas, icon)
         appendOutput(icon.toString(), sas, doc)
     }
-/*
-    static void appendOutput(URLImageSource imageSource, AttributeSet style, Document doc) {
-        def icon = new ImageIcon(Toolkit.defaultToolkit.createImage(imageSource))
-        appendOutput(icon, style, doc)
-    }
-*/
+
   static void main(def args) {
     LookAndFeelHelper.instance.addLookAndFeelAlias('seaglass', 'com.seaglasslookandfeel.SeaGlassLookAndFeel')
 
@@ -125,6 +122,7 @@ class Evaluator {
     binding.variables._outputTransforms += OutputTransforms.loadOutputTransforms()
     
     binding.variables._ui = new SwingBuilder()
+    binding.variables._xml = new XmlSlurper()
     binding.variables._json = new JsonSlurper()
     
     binding.variables._ws = [:]
@@ -134,6 +132,9 @@ class Evaluator {
     binding.variables._ws.units = new WebService(wsdl: "http://www.webservicex.net/ConvertCooking.asmx?WSDL")
     binding.variables._ws.geo = new WebService(wsdl: "http://www.webservicex.net/geoipservice.asmx?WSDL")
     binding.variables._ws.barcode = new WebService(wsdl: "http://www.webservicex.net/barcode.asmx?WSDL")
+    
+    binding.variables._db = [:]
+    binding.variables._db.dmowner = new Database(driverClass: "oracle.jdbc.pool.OracleConnectionPoolDataSource", url: "jdbc:oracle:thin:DM_OWNER/tiger@mdxodb02:1521:ora10dv")
     
     def shell = new GroovyShell(binding)
     
@@ -152,18 +153,18 @@ class Evaluator {
     synonyms += new Synonym(name: 'range', input: '{ it.max() - it.min() }')
     synonyms += new Synonym(name: 'nslookup', input: '{ InetAddress.getAllByName(it) }')
     synonyms += new Synonym(name: 'reverseLookup', input: '{ InetAddress.getByAddress((byte[]) it).hostName }')
-    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=500x150&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }''')
-    synonyms += new Synonym(name: 'table', input: '{ result -> _ui.table { tableModel(list: result) { closureColumn(header: "Result", read: { row -> row} ) } } }')
+    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels, height = 150, width = 500 -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=${width}x${height}&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }''')
+    synonyms += new Synonym(name: 'table', input: '{ result, height = 150, width = 200 -> _ui.scrollPane(preferredSize: new java.awt.Dimension(width, height)) { _ui.table { tableModel(list: result) { closureColumn(header: "Result", read: { row -> row} ) } } } }')
     synonyms += new Synonym(name: 'currency', input: '{ from, to -> _ws.currency.client.ConversionRate(from, to) }')
-    synonyms += new Synonym(name: 'stockQuote', input: '{ symbol -> new XmlParser().parseText(_ws.market.client.GetQuote(symbol)) }')
+    synonyms += new Synonym(name: 'stockQuote', input: '{ symbol -> _xml.parseText(_ws.market.client.GetQuote(symbol)) }')
     synonyms += new Synonym(name: 'printNode', input: '{ node -> node.children().collect { "${it.name()} = ${it.text()}"} }')
     synonyms += new Synonym(name: 'whois', input: '{ name -> _ws.whois.client.GetWhoIS(name).split("\\n") }')
     synonyms += new Synonym(name: 'convertUnits', input: '{ amount, from, to -> _ws.units.client.ChangeCookingUnit(amount, from, to) }')
     synonyms += new Synonym(name: 'geoLocate', input: '{ address -> _ws.geo.client.GetGeoIP(address) }')
     synonyms += new Synonym(name: 'geoLocateHost', input: '{ host -> geoLocate(nslookup(host)[0].hostAddress) }')
-    synonyms += new Synonym(name: 'barCode', input: '{ text, size -> java.awt.Toolkit.defaultToolkit.createImage(_ws.barcode.client.Code39(text, size, true)) }')
+    synonyms += new Synonym(name: 'barCode', input: '{ text, size = 50 -> java.awt.Toolkit.defaultToolkit.createImage(_ws.barcode.client.Code39(text, size, true)) }')
     synonyms += new Synonym(name: 'freebase', input: '{ query -> _json.parse(new URL("http://www.freebase.com/api/service/search?query=${query}")) }')
-    synonyms += new Synonym(name: 'map', input: '{ query -> new URL("http://maps.google.com/maps/api/staticmap?center=${query}&zoom=14&size=512x512&maptype=roadmap&markers=color:blue|label:S|40.702147,-74.015794&markers=color:green|label:G|40.711614,-74.012318&markers=color:red|color:red|label:C|40.718217,-73.998284&sensor=false").content }')
+    synonyms += new Synonym(name: 'map', input: '{ query, height = 250, width = 300, zoom = 14 -> new URL("http://maps.google.com/maps/api/staticmap?center=${query}&zoom=${zoom}&size=${width}x${height}&maptype=roadmap&markers=color:blue|label:S|40.702147,-74.015794&markers=color:green|label:G|40.711614,-74.012318&markers=color:red|color:red|label:C|40.718217,-73.998284&sensor=false").content }')
     
     for (synonym in synonyms) {
         try {
@@ -254,6 +255,38 @@ class Evaluator {
         }
     }
     
+    def editDatabases = { parent ->
+        swing.dialog(title: 'Databases', size: [400, 250], show: true, owner: parent, modal: true, locationRelativeTo: parent) {
+            borderLayout()
+            panel(border: emptyBorder(5)) {
+                borderLayout()
+                scrollPane(horizontalScrollBarPolicy: JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, border: null) {
+                    list(id: 'dbList')
+                    dbList.cellRenderer = new DefaultListCellRenderer()
+                    def dbModel = new DefaultListModel()
+                    for (db in binding.variables._db) {
+                        dbModel.addElement(db.key)
+                    }
+                    dbList.model = dbModel
+                    dbList.selectionModel.valueChanged = {
+                        if (dbList.selectedValue) {
+                            dbEditField.text = binding.variables._db[dbList.selectedValue].url
+                        }
+                        else {
+                            dbEditField.text = null
+                        }
+                    }
+                }
+            }
+            panel(border: emptyBorder(5), constraints: BorderLayout.SOUTH) {
+                borderLayout()
+//                scrollPane(border: null) {
+                    textField(id: 'dbEditField')
+//                }
+            }
+        }
+    }
+    
     def inputPrompt = 'Enter an expression'
 
     swing.edt {
@@ -266,6 +299,7 @@ class Evaluator {
               action(id: 'exitAction', name: 'Exit', accelerator: shortcut('Q'), closure: { close(evaluatorFrame, true) })
               action(id: 'editSynonymsAction', name: 'Synonyms..', closure: { editSynonyms(evaluatorFrame) })
               action(id: 'editWebServicesAction', name: 'Web Services..', closure: { editWebServices(evaluatorFrame) })
+              action(id: 'editDatabasesAction', name: 'Databases..', closure: { editDatabases(evaluatorFrame) })
               action(id: 'onlineHelpAction', name: 'Online Help', accelerator: 'F1', closure: { Desktop.desktop.browse(URI.create('http://basetools.org/evaluator')) })
               action(id: 'showTipsAction', name: 'Tips', closure: { tips.showDialog(evaluatorFrame) }, enabled: false)
               action(id: 'aboutAction', name: 'About', closure: {
@@ -299,6 +333,8 @@ class Evaluator {
                   menuItem(editSynonymsAction)
                   separator()
                   menuItem(editWebServicesAction)
+                  separator()
+                  menuItem(editDatabasesAction)
               }
               menu(text: 'View', mnemonic: 'V') {
                   checkBoxMenuItem(text: "Number Pad", id: 'viewNumPad')
@@ -376,10 +412,18 @@ class Evaluator {
               
               def appendInput = {
                   if (!inputField.text || inputField.text == inputPrompt) {
-                      inputField.text = it
+                      if (it == '.') {
+                        inputField.text = "0${it}"
+                      }
+                      else {
+                        inputField.text = it
+                      }
                   }
                   else if ((it instanceof Number || it == '.') && (inputField.text[-1].isNumber() || inputField.text[-1] == '.')) {
                       inputField.text = "${inputField.text}${it}"
+                  }
+                  else if (it == '.' && !inputField.text[-1].isNumber()) {
+                      inputField.text = "${inputField.text} 0${it}"
                   }
                   else {
                       inputField.text = "${inputField.text} ${it}"
@@ -408,8 +452,8 @@ class Evaluator {
               
               button(text: '0', id: 'but0', actionPerformed: { appendInput(0) })
               button(text: '.', actionPerformed: { appendInput('.') })
-              button(text: '+', actionPerformed: { appendInput('+') })
               button(text: '=', actionPerformed: { inputField.postActionEvent() })
+              button(text: '+', actionPerformed: { appendInput('+') })
               button(text: '**', toolTipText: 'Power of', actionPerformed: { appendInput('**') })
           }
           bind(source: viewNumPad, sourceProperty:'selected', target: numPad, targetProperty:'visible')
@@ -523,6 +567,12 @@ class WebService {
     String toString() {
         return name
     }
+}
+
+class Database {
+    def driverClass
+    def url
+    @Lazy def client = { Class.forName(driverClass); Sql.newInstance(url) }()
 }
 
 class SynonymListCellRenderer extends DefaultListCellRenderer {
