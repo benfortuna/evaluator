@@ -272,18 +272,12 @@
 			<groupId>org.codehaus.groovy.modules</groupId>
 			<artifactId>groovyws</artifactId>
 			<version>0.5.1</version>
-			<!-- 
 			<exclusions>
 				<exclusion>
 		          <groupId>com.ibm.icu</groupId>
 		          <artifactId>icu4j</artifactId>
 		        </exclusion>
-				<exclusion>
-		          <groupId>org.mortbay.jetty</groupId>
-		          <artifactId>jetty</artifactId>
-		        </exclusion>
 			</exclusions>
-			 -->
 		</dependency>
 		<dependency>
 			<groupId>net.sf.json-lib</groupId>
