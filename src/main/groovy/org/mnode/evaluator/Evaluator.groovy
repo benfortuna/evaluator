@@ -1,5 +1,6 @@
 /**
- * This file is part of Base Modules.
+
+* This file is part of Base Modules.
  *
  * Copyright (c) 2010, Ben Fortuna [fortuna@micronode.com]
  *
@@ -18,6 +19,8 @@
  */
 package org.mnode.evaluator
 
+import groovy.swing.SwingBuilder
+import groovy.lang.GroovyShell
 import java.awt.SystemTray
 import java.awt.TrayIcon
 import java.awt.PopupMenu
@@ -53,8 +56,6 @@ import javax.swing.text.DefaultStyledDocument
 import javax.swing.text.Document
 import javax.swing.text.AttributeSet
 import javax.swing.text.SimpleAttributeSet
-import groovy.lang.GroovyShell
-import groovy.swing.SwingBuilder
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 import groovy.ui.OutputTransforms
@@ -153,12 +154,12 @@ class Evaluator {
     synonyms += new Synonym(name: 'nslookup', input: '{ InetAddress.getAllByName(it) }')
     synonyms += new Synonym(name: 'reverseLookup', input: '{ InetAddress.getByAddress((byte[]) it).hostName }')
     synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels, height = 150, width = 500 -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=${width}x${height}&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }''')
-    synonyms += new Synonym(name: 'table', input: '{ result, height = 150, width = 200 -> _ui.scrollPane(preferredSize: new java.awt.Dimension(width, height)) { _ui.table { tableModel(list: result) { closureColumn(header: "Result", read: { row -> row} ) } } } }')
-    synonyms += new Synonym(name: 'currency', input: '{ from, to -> _ws.currency.client.ConversionRate(from, to) }')
+    synonyms += new Synonym(name: 'table', input: '{ result, columns = null, height = 150, width = 200 -> _ui.scrollPane(preferredSize: new java.awt.Dimension(width, height)) { _ui.table { tableModel(list: result) { if (columns) { columns.each { column -> closureColumn(header: column, read: { row -> (row.containsKey(column)) ? row[column] : "-" } ) } } else { closureColumn(header: "Result", read: { row -> row} ) } } } } }')
+    synonyms += new Synonym(name: 'currency', input: '{ from, Object[] to -> def result = ["${from}":1]; for (c in to) { result += ["${c}":_ws.currency.client.ConversionRate(from, c)] }; return result }')
     synonyms += new Synonym(name: 'stockQuote', input: '{ symbol -> _xml.parseText(_ws.market.client.GetQuote(symbol)) }')
     synonyms += new Synonym(name: 'printNode', input: '{ node -> node.children().collect { "${it.name()} = ${it.text()}"} }')
     synonyms += new Synonym(name: 'whois', input: '{ name -> _ws.whois.client.GetWhoIS(name).split("\\n") }')
-    synonyms += new Synonym(name: 'convertUnits', input: '{ amount, from, to -> _ws.units.client.ChangeCookingUnit(amount, from, to) }')
+    synonyms += new Synonym(name: 'convertUnits', input: '{ amount, from, Object[] to -> def result = ["${from}":"${amount}"]; for (c in to) { result += ["${c}":_ws.units.client.ChangeCookingUnit(amount, from, c)] }; return result }')
     synonyms += new Synonym(name: 'geoLocate', input: '{ address -> _ws.geo.client.GetGeoIP(address) }')
     synonyms += new Synonym(name: 'geoLocateHost', input: '{ host -> geoLocate(nslookup(host)[0].hostAddress) }')
     synonyms += new Synonym(name: 'barCode', input: '{ text, size = 50 -> java.awt.Toolkit.defaultToolkit.createImage(_ws.barcode.client.Code39(text, size, true)) }')
