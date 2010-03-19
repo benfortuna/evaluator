@@ -299,6 +299,22 @@
 		          <groupId>org.bouncycastle</groupId>
 		          <artifactId>bcprov-jdk15</artifactId>
 		        </exclusion>
+				<exclusion>
+		          <groupId>org.apache.velocity</groupId>
+		          <artifactId>velocity</artifactId>
+		        </exclusion>
+				<exclusion>
+		          <groupId>org.springframework</groupId>
+		          <artifactId>spring-web</artifactId>
+		        </exclusion>
+				<exclusion>
+		          <groupId>org.springframework</groupId>
+		          <artifactId>spring-jms</artifactId>
+		        </exclusion>
+				<exclusion>
+		          <groupId>org.springframework</groupId>
+		          <artifactId>spring-tx</artifactId>
+		        </exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
