@@ -1,6 +1,5 @@
 /**
-
-* This file is part of Base Modules.
+ * This file is part of Base Modules.
  *
  * Copyright (c) 2010, Ben Fortuna [fortuna@micronode.com]
  *
@@ -19,8 +18,6 @@
  */
 package org.mnode.evaluator
 
-import groovy.swing.SwingBuilder
-import groovy.lang.GroovyShell
 import java.awt.SystemTray
 import java.awt.TrayIcon
 import java.awt.PopupMenu
@@ -56,6 +53,8 @@ import javax.swing.text.DefaultStyledDocument
 import javax.swing.text.Document
 import javax.swing.text.AttributeSet
 import javax.swing.text.SimpleAttributeSet
+import groovy.lang.GroovyShell
+import groovy.swing.SwingBuilder
 import groovy.swing.LookAndFeelHelper
 import java.awt.BorderLayout
 import groovy.ui.OutputTransforms

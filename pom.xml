@@ -56,8 +56,30 @@
 		<plugins>
 
             <plugin>
-                <groupId>org.codehaus.groovy.maven</groupId>
+                <groupId>org.codehaus.gmaven</groupId>
                 <artifactId>gmaven-plugin</artifactId>
+                <version>1.2</version>
+                <configuration> 
+			        <providerSelection>1.7</providerSelection> 
+			      </configuration> 
+                <dependencies>
+					<dependency>
+						<groupId>org.codehaus.gmaven.runtime</groupId>
+						<artifactId>gmaven-runtime-1.7</artifactId>
+						<version>1.2</version>
+						<exclusions>
+			              <exclusion>
+			                <groupId>org.codehaus.groovy</groupId>
+			                <artifactId>groovy-all</artifactId>
+			              </exclusion>
+			            </exclusions>
+		          </dependency>
+		          <dependency>
+		            <groupId>org.codehaus.groovy</groupId>
+		            <artifactId>groovy-all</artifactId>
+		            <version>1.7.1</version>
+		          </dependency>
+				</dependencies>
                 <executions>
                     <execution>
                         <goals>
@@ -237,10 +259,10 @@
 	</build>
 	<dependencies>
 		<dependency>
-			<groupId>org.codehaus.gmaven.runtime</groupId>
-			<artifactId>gmaven-runtime-1.7</artifactId>
-			<version>1.2</version>
-		</dependency>
+	        <groupId>org.codehaus.groovy</groupId>
+	        <artifactId>groovy-all</artifactId>
+	        <version>1.7.1</version>
+    	</dependency>
 		<dependency>
 			<groupId>com.seaglasslookandfeel</groupId>
 			<artifactId>seaglasslookandfeel</artifactId>
@@ -250,12 +272,18 @@
 			<groupId>org.codehaus.groovy.modules</groupId>
 			<artifactId>groovyws</artifactId>
 			<version>0.5.1</version>
+			<!-- 
 			<exclusions>
 				<exclusion>
-          <groupId>com.ibm.icu</groupId>
-          <artifactId>icu4j</artifactId>
-        </exclusion>
+		          <groupId>com.ibm.icu</groupId>
+		          <artifactId>icu4j</artifactId>
+		        </exclusion>
+				<exclusion>
+		          <groupId>org.mortbay.jetty</groupId>
+		          <artifactId>jetty</artifactId>
+		        </exclusion>
 			</exclusions>
+			 -->
 		</dependency>
 		<dependency>
 			<groupId>net.sf.json-lib</groupId>
@@ -264,8 +292,4 @@
 			<classifier>jdk15</classifier>
 		</dependency>
 	</dependencies>
-	<dependencyManagement>
-		<dependencies>
-		</dependencies>
-	</dependencyManagement>
 </project>
