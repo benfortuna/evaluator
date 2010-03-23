@@ -262,12 +262,14 @@
 	        <groupId>org.codehaus.groovy</groupId>
 	        <artifactId>groovy-all</artifactId>
 	        <version>1.7.1</version>
+	        <!-- 
 	        <exclusions>
 	        	<exclusion>
 	        		<groupId>org.apache.ant</groupId>
 	        		<artifactId>ant</artifactId>
 	        	</exclusion>
 	        </exclusions>
+	         -->
     	</dependency>
 		<dependency>
 			<groupId>com.seaglasslookandfeel</groupId>
@@ -278,6 +280,7 @@
 			<groupId>org.codehaus.groovy.modules</groupId>
 			<artifactId>groovyws</artifactId>
 			<version>0.5.1</version>
+			<!-- 
 			<exclusions>
 	        	<exclusion>
 	        		<groupId>org.apache.ant</groupId>
@@ -316,6 +319,7 @@
 		          <artifactId>spring-tx</artifactId>
 		        </exclusion>
 			</exclusions>
+			 -->
 		</dependency>
 		<dependency>
 			<groupId>net.sf.json-lib</groupId>
