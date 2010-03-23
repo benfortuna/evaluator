@@ -65,6 +65,7 @@ import groovy.sql.Sql
 
 /*
 @Grapes([
+    @Grab(group='jxlayer', module='layer', version='3.0'),
     @Grab(group='net.sf.json-lib', module='json-lib', version='2.3', classifier='jdk15'),
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
     @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
@@ -153,7 +154,7 @@ class Evaluator {
     synonyms += new Synonym(name: 'range', input: '{ it.max() - it.min() }')
     synonyms += new Synonym(name: 'nslookup', input: '{ InetAddress.getAllByName(it) }')
     synonyms += new Synonym(name: 'reverseLookup', input: '{ InetAddress.getByAddress((byte[]) it).hostName }')
-    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels, height = 150, width = 500 -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=${width}x${height}&chd=t:${data.join(',')}&chl=${labels.join('|')}").content }''')
+    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels, height = 150, width = 500 -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=${width}x${height}&chd=t:${URLEncoder.encode(data).join(',')}&chl=${encode(labels).join('|')}").content }''')
     synonyms += new Synonym(name: 'table', input: '{ result, columns = null, height = 150, width = 200 -> _ui.scrollPane(preferredSize: new java.awt.Dimension(width, height)) { _ui.table { tableModel(list: result) { if (columns) { columns.each { column -> closureColumn(header: column, read: { row -> (row.containsKey(column)) ? row[column] : "-" } ) } } else { closureColumn(header: "Result", read: { row -> row} ) } } } } }')
     synonyms += new Synonym(name: 'currency', input: '{ from, Object[] to -> def result = ["${from}":1]; for (c in to) { result += ["${c}":_ws.currency.client.ConversionRate(from, c)] }; return result }')
     synonyms += new Synonym(name: 'stockQuote', input: '{ symbol -> _xml.parseText(_ws.market.client.GetQuote(symbol)) }')
@@ -163,8 +164,10 @@ class Evaluator {
     synonyms += new Synonym(name: 'geoLocate', input: '{ address -> _ws.geo.client.GetGeoIP(address) }')
     synonyms += new Synonym(name: 'geoLocateHost', input: '{ host -> geoLocate(nslookup(host)[0].hostAddress) }')
     synonyms += new Synonym(name: 'barCode', input: '{ text, size = 50 -> java.awt.Toolkit.defaultToolkit.createImage(_ws.barcode.client.Code39(text, size, true)) }')
-    synonyms += new Synonym(name: 'freebase', input: '{ query -> _json.parse(new URL("http://www.freebase.com/api/service/search?query=${query}")) }')
-    synonyms += new Synonym(name: 'map', input: '{ query, height = 250, width = 300, zoom = 14 -> new URL("http://maps.google.com/maps/api/staticmap?center=${query}&zoom=${zoom}&size=${width}x${height}&maptype=roadmap&markers=color:blue|label:S|40.702147,-74.015794&markers=color:green|label:G|40.711614,-74.012318&markers=color:red|color:red|label:C|40.718217,-73.998284&sensor=false").content }')
+    synonyms += new Synonym(name: 'freebase', input: '{ query, limit = 50 -> _json.parse(new URL("http://www.freebase.com/api/service/search?query=${URLEncoder.encode(query)}&limit=${limit}")).result }')
+    synonyms += new Synonym(name: 'map', input: '{ query, height = 250, width = 300, zoom = 14 -> new URL("http://maps.google.com/maps/api/staticmap?center=${URLEncoder.encode(query)}&zoom=${zoom}&size=${width}x${height}&maptype=roadmap&markers=color:blue|label:S|40.702147,-74.015794&markers=color:green|label:G|40.711614,-74.012318&markers=color:red|color:red|label:C|40.718217,-73.998284&sensor=false").content }')
+    synonyms += new Synonym(name: 'walpha', input: '{ query, appid = "XXXX" -> _xml.parse(new URL("http://api.wolframalpha.com/v1/query?input=${URLEncoder.encode(query)}&appid=${appid}").content) }')
+    synonyms += new Synonym(name: 'date', input: '{ format = "short" -> (format == "short") ? new Date().format("dd/MM/yy") : new Date().format("dd/MM/yy HH:mm:ss") }')
     
     for (synonym in synonyms) {
         try {
