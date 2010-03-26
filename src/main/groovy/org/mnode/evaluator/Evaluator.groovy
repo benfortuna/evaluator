@@ -154,7 +154,7 @@ class Evaluator {
     synonyms += new Synonym(name: 'range', input: '{ it.max() - it.min() }')
     synonyms += new Synonym(name: 'nslookup', input: '{ InetAddress.getAllByName(it) }')
     synonyms += new Synonym(name: 'reverseLookup', input: '{ InetAddress.getByAddress((byte[]) it).hostName }')
-    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels, height = 150, width = 500 -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=${width}x${height}&chd=t:${URLEncoder.encode(data).join(',')}&chl=${encode(labels).join('|')}").content }''')
+    synonyms += new Synonym(name: 'pieChart', input: '''{ data, labels, height = 150, width = 400 -> new URL("http://chart.apis.google.com/chart?cht=p3&chs=${width}x${height}&chd=t:${URLEncoder.encode(data.join(','))}&chl=${URLEncoder.encode(labels.join('|'))}").content }''')
     synonyms += new Synonym(name: 'table', input: '{ result, columns = null, height = 150, width = 200 -> _ui.scrollPane(preferredSize: new java.awt.Dimension(width, height)) { _ui.table { tableModel(list: result) { if (columns) { columns.each { column -> closureColumn(header: column, read: { row -> (row.containsKey(column)) ? row[column] : "-" } ) } } else { closureColumn(header: "Result", read: { row -> row} ) } } } } }')
     synonyms += new Synonym(name: 'currency', input: '{ from, Object[] to -> def result = ["${from}":1]; for (c in to) { result += ["${c}":_ws.currency.client.ConversionRate(from, c)] }; return result }')
     synonyms += new Synonym(name: 'stockQuote', input: '{ symbol -> _xml.parseText(_ws.market.client.GetQuote(symbol)) }')
