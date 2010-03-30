@@ -62,15 +62,33 @@ import groovy.ui.OutputTransforms
 import groovyx.net.ws.WSClient
 import net.sf.json.groovy.JsonSlurper
 import groovy.sql.Sql
+import org.mnode.base.log.LogEntry
+import org.mnode.base.log.LogEntry.Level
+import org.mnode.base.log.FormattedLogEntry
+import org.mnode.base.log.LogAdapter
+import org.mnode.base.log.adapter.Jdk14Adapter
+//import org.apache.commons.logging.Log
+//import org.apache.commons.logging.LogFactory
+//import org.apache.log4j.Logger
+import java.util.logging.Logger
 
 /*
 @Grapes([
+    @Grab(group='org.mnode.base', module='base-ws', version='0.0.1-SNAPSHOT'),
+    @Grab(group='org.mnode.base', module='base-log', version='0.0.1-SNAPSHOT'),
+//    @Grab(group='log4j', module='log4j', version='1.2.15', transitive=false),
+//    @Grab(group='org.slf4j', module='slf4j-log4j12', version='1.5.8', transitive=false),
     @Grab(group='jxlayer', module='layer', version='3.0'),
-    @Grab(group='net.sf.json-lib', module='json-lib', version='2.3', classifier='jdk15'),
+    @Grab(group='net.sf.json-lib', module='json-lib', version='2.3', classifier='jdk15')])
 //    @Grab(group='com.seaglasslookandfeel', module='seaglasslookandfeel', version='0.1.7.2')])
-    @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
-    */
+//    @Grab(group='org.codehaus.groovy.modules', module='groovyws', version='0.5.1')])
+ */
 class Evaluator {
+
+//    static final Log log = LogFactory.getLog(Evaluator.class)
+//    static final Logger log = Logger.getInstance(Evaluator.class)
+    static final LogAdapter log = new Jdk14Adapter(Logger.getLogger(Evaluator.class.name))
+    static final LogEntry unsuccessful_eval = new FormattedLogEntry(Level.Error, 'Unsuccessful evaluation')
 
      static void close(def frame, def exit) {
          if (exit) {
@@ -174,7 +192,7 @@ class Evaluator {
             evaluate("${synonym.name} = ${synonym.input}")
         }
         catch (Exception e) {
-            e.printStackTrace()
+            log.log unsuccessful_eval, e
         }
     }
     
@@ -395,6 +413,7 @@ class Evaluator {
                                     evaluation.result = evaluate(evaluation.input)
                                 }
                                 catch (Exception e) {
+                                    log.log unsuccessful_eval, e
                                     evaluation.result = e
                                 }
                                 evaluations += evaluation
