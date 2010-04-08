@@ -404,6 +404,20 @@ class Evaluator {
                          inputField.text = evaluations[evaluations.size - 1].input
                      }
                  }
+                 inputField.keyReleased = { e ->
+                     if (inputField.text && !e.actionKey && e.keyCode != KeyEvent.VK_BACK_SPACE && e.modifiers == 0) {
+                         for (synonym in synonyms) {
+                             if (synonym.name.startsWith(inputField.text)) {
+                                 println "Matched: ${synonym.name}"
+                                 def inputLength = inputField.text.length()
+                                 inputField.text = synonym.name
+                                 inputField.selectionStart = inputLength
+                                 inputField.selectionEnd = inputField.text.length()
+                                 break
+                             }
+                         }
+                     }
+                 }
                   inputField.actionPerformed = {
                       if (inputField.text) {
 //                            resultField.text = "${resultField.text}\n${evaluate(inputField.text)}"
