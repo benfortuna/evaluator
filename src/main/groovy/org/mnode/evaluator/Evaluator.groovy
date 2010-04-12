@@ -129,6 +129,11 @@ class Evaluator {
   static void main(def args) {
     LookAndFeelHelper.instance.addLookAndFeelAlias('seaglass', 'com.seaglasslookandfeel.SeaGlassLookAndFeel')
 
+//    println "Policy file exists: ${new File('evaluator.policy').exists()}"
+//    System.setProperty("java.security.manager", "")
+//    System.setProperty("java.security.policy", "evaluator.policy")
+//    System.setSecurityManager(new SecurityManager())
+    
     StyledDocument doc = new DefaultStyledDocument()
     def inputStyle = doc.addStyle("input", StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE))
     StyleConstants.setForeground(inputStyle, Color.LIGHT_GRAY)
@@ -158,7 +163,7 @@ class Evaluator {
     def shell = new GroovyShell(binding)
     
     def evaluate = { expression ->
-        def result = shell.evaluate(expression)
+        def result = shell.evaluate(new GroovyCodeSource(expression, 'EvaluationScripts', '/evaluations/script'))
         OutputTransforms.transformResult(result, shell.context._outputTransforms)
 //        return result
     }
@@ -206,7 +211,12 @@ class Evaluator {
              }
              appendOutput(evaluation.input, inputStyle, doc)
              appendOutput('\n', inputStyle, doc)
-             appendOutput(evaluation.result, resultStyle, doc)
+             if (evaluation.result) {
+                 appendOutput(evaluation.result, resultStyle, doc)
+             }
+             else {
+                 appendOutput('null', resultStyle, doc)
+             }
 //             doc.insertString(doc.length, "${evaluation.input}\n", inputStyle)
 //             doc.insertString(doc.length, "= ${evaluation.result}\n", resultStyle)
 //        }
